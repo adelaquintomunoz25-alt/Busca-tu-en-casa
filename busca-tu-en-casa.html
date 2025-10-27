@@ -1,0 +1,573 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Busca tu en casa</title>
+<style>
+  :root{
+    --bg1:#fff7f0; --bg2:#eef9ff;
+    --card:#fff; --accent:#ff7aa2; --accent2:#6cc3ff; --muted:#5f6b78;
+    --good:#6dd48a; --bad:#ff8a8a;
+  }
+  *{box-sizing:border-box;font-family:"Nunito","Poppins",system-ui,Arial,sans-serif}
+  body{margin:0;background:linear-gradient(180deg,var(--bg1),var(--bg2));color:#102;min-height:100vh;padding:12px}
+  .container{max-width:980px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  h1{margin:0;font-size:20px;color:#0b3b5f}
+  .card{background:var(--card);border-radius:14px;padding:12px;box-shadow:0 8px 22px rgba(10,20,40,0.06)}
+  .small{font-size:13px;color:var(--muted)}
+  input[type=text]{width:100%;padding:10px;border-radius:10px;border:2px solid #f2f3f5}
+  .row{display:flex;gap:8px}
+  button{cursor:pointer}
+  .primary{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;padding:10px 12px;border-radius:12px;font-weight:800}
+  .ghost{background:transparent;border:2px solid rgba(0,0,0,0.06);padding:8px;border-radius:10px}
+  .genderBtns{display:flex;gap:8px;margin-top:8px}
+  .genderBtns button{flex:1;padding:8px;border-radius:10px;border:2px solid transparent;background:#fff;font-weight:800}
+  .genderBtns button.active{box-shadow:0 8px 18px rgba(0,0,0,0.06);border-color:rgba(0,0,0,0.06)}
+
+  /* Departments menu */
+  .deptGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+  .deptBtn{padding:16px;border-radius:12px;background:linear-gradient(180deg,#fff,#f7fbff);font-weight:900;border:2px solid #f1f5f9}
+  .deptBtn:hover{transform:translateY(-3px);transition:all .18s}
+
+  /* Game UI */
+  #gameUI{display:none;margin-top:12px}
+  .topBar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .playerCard{display:flex;gap:12px;align-items:center}
+  .avatarBox{width:72px;height:72px;border-radius:14px;background:linear-gradient(180deg,#fff,#f7fbff);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(10,20,40,0.06)}
+  .timerBox{display:flex;flex-direction:column;align-items:center}
+  .timer{font-weight:900;font-size:18px;color:#0b3b5f}
+
+  .levelStrip{margin-top:12px;background:linear-gradient(180deg,#fff,#f7fbff);padding:8px;border-radius:12px;display:flex;align-items:center;gap:8px;overflow:auto}
+  .levels{display:flex;gap:6px;align-items:center;padding-bottom:6px}
+  .lvlDot{width:28px;height:28px;border-radius:50%;background:#f0f4ff;display:flex;align-items:center;justify-content:center;font-weight:800;color:#123;flex:0 0 auto}
+  .lvlDot.done{background:linear-gradient(90deg,#d3ffd8,#6dd48a);color:#064}
+  .lvlDot.active{box-shadow:0 4px 12px rgba(0,0,0,0.06);transform:scale(1.05)}
+
+  /* Board */
+  #boardWrap{display:flex;flex-direction:column;align-items:center;margin-top:12px}
+  #grid{display:grid;gap:4px;touch-action:none;user-select:none;padding:8px;background:linear-gradient(180deg,#fff,#fff);border-radius:12px;box-shadow:inset 0 2px 10px rgba(0,0,0,0.02)}
+  .cell{min-width:36px;min-height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#fff;font-weight:800;border:2px solid #f0f4ff;user-select:none}
+  .cell.sel{background:linear-gradient(90deg,#fff4e6,#fff1f4);transform:scale(1.02)}
+  .cell.found{background:linear-gradient(90deg,#e6fff1,#d6ffd9);color:#064;border-color:transparent}
+  .controls{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;justify-content:center}
+  .wordsList{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;justify-content:center}
+  .wordChip{padding:6px 8px;background:#fff;border-radius:12px;border:2px solid #f0f4ff;font-weight:700}
+  .wordChip.found{background:#dff6e6;border-color:#bff0c9;color:#065;text-decoration:line-through}
+
+  .footer{margin-top:12px;text-align:center;color:var(--muted)}
+  @media (max-width:640px){
+    .cell{min-width:30px;min-height:30px;font-size:13px}
+    .avatarBox{width:56px;height:56px}
+    .lvlDot{width:24px;height:24px;font-size:12px}
+  }
+
+  /* avatar jump */
+  .svg-avatar{width:56px;height:56px}
+  .jump{animation: jumpAnim 0.45s ease;}
+  @keyframes jumpAnim{
+    0%{transform:translateY(0)}40%{transform:translateY(-18px) rotate(-6deg)}100%{transform:translateY(0)}
+  }
+
+  /* messages */
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#111;color:#fff;padding:8px 12px;border-radius:10px;opacity:0.95}
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="card" style="display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <h1>Busca tu en casa</h1>
+      <div class="small">Encuentra palabras en la casa — ¡colores infantiles y divertido!</div>
+    </div>
+    <div class="small">4 habitaciones × 20 niveles</div>
+  </header>
+
+  <!-- START / MENU -->
+  <section id="startCard" class="card">
+    <label>Nombre del jugador</label>
+    <input id="playerName" placeholder="Escribe tu nombre...">
+    <div class="genderBtns" style="margin-top:10px">
+      <button id="btnMale" class="active">👦 Niño</button>
+      <button id="btnFemale">👧 Niña</button>
+    </div>
+
+    <label style="margin-top:10px">Elige una habitación</label>
+    <div class="deptGrid">
+      <button class="deptBtn" data-dept="dormitorio">🛏️ Dormitorio</button>
+      <button class="deptBtn" data-dept="cocina">🍳 Cocina</button>
+      <button class="deptBtn" data-dept="baño">🚿 Baño</button>
+      <button class="deptBtn" data-dept="sala">🛋️ Sala</button>
+    </div>
+
+    <div style="height:10px"></div>
+    <button id="startBtn" class="primary" style="width:100%;">Comenzar juego</button>
+    <div class="footer small" style="margin-top:8px">Tiempo por nivel: <strong>30 segundos</strong>. Palabras por nivel: 5, 10, 15 ... hasta 100.</div>
+  </section>
+
+  <!-- GAME UI -->
+  <section id="gameUI" class="card" style="display:none">
+    <div class="topBar">
+      <div class="playerCard">
+        <div class="avatarBox" id="avatarBox" aria-hidden="true"></div>
+        <div>
+          <div id="playerInfo" style="font-weight:900">Jugador</div>
+          <div class="small" id="deptInfo">Departamento</div>
+          <div class="small">Nivel <strong id="levelUI">1</strong> / 20</div>
+        </div>
+      </div>
+
+      <div class="timerBox">
+        <div class="small">Tiempo</div>
+        <div class="timer" id="timer">00:30</div>
+      </div>
+    </div>
+
+    <div class="levelStrip" style="margin-top:12px;">
+      <div style="display:flex;align-items:center;width:100%">
+        <div style="flex:1;overflow:hidden">
+          <div class="levels" id="levelsRow"></div>
+        </div>
+        <div id="trackBox" style="width:44px;height:44px;position:relative"></div>
+      </div>
+    </div>
+
+    <div id="boardWrap">
+      <div id="grid" style="margin-top:12px"></div>
+
+      <div class="controls">
+        <button id="resetSel" class="ghost">Reset selección</button>
+        <button id="retryBtn" class="ghost" style="display:none">Reintentar</button>
+        <button id="nextBtn" class="primary" style="display:none">Siguiente nivel ▶</button>
+        <button id="menuBtn" class="ghost">⟵ Volver al menú</button>
+      </div>
+
+      <div class="wordsList" id="wordsUI"></div>
+    </div>
+
+    <div class="footer">Encuentra todas las palabras antes que termine el tiempo. ¡Muy bien!</div>
+  </section>
+</div>
+
+<!-- small toast -->
+<div id="toast" class="toast" style="display:none"></div>
+
+<script>
+/* ===========================
+  Palabras por departamento
+  (listas suficientemente grandes; el motor toma 5*nivel)
+  =========================== */
+const WORDS = {
+  dormitorio: [
+"cama","colchón","almohada","sábana","funda","cobija","armario","ropero","percha","mesita",
+"lámpara","velador","colcha","cabecero","espejo","cómoda","edredón","cortina","alfombra","manta",
+"somier","cojín","cajón","zapatero","pijama","reloj","estantería","libro","silla","ventana",
+"persiana","dosel","cuna","juguete","foto","cuadro","maceta","buró","calefactor","ventilador",
+"plantita","repisa","perchero","caja","cobertor","protectorsábana","mantita","almohadón","cubrecolchón","protector"
+  ],
+  cocina: [
+"cocina","estufa","horno","microondas","refrigerador","nevera","congelador","fregadero","lavaplatos","encimera",
+"campana","olla","sartén","cuchillo","cuchara","tenedor","plato","taza","vaso","licuadora",
+"cafetera","tostadora","jarra","tabla","colador","espátula","tapa","salero","pimentero","aceitera",
+"batidor","tostador","paño","detergente","trapo","recipiente","tupper","rallador","pelador","mortero",
+"pinzas","cucharón","cuchillocebolla","moldedehorno","cazuela","cubertería","tazaGrande","frasco","tarro","portaespecias"
+  ],
+  baño: [
+"lavabo","inodoro","ducha","bañera","jabón","champú","acondicionador","toalla","espejo","grifo",
+"cortinaducha","alfombrilla","botiquín","cepillo","pasta","enjuague","papel","portarrollo","secador","gel",
+"esponja","jabonera","alcachofa","bidé","mueble","repuesto","limpiador","desinfectante","ambientador","tapon",
+"toallero","percha","rejilla","sifón","desagüe","cepilloinodoro","báscula","lavadora","secadora","suavizante",
+"detergente","cubo","fregona","estropajo","limpiaCristales","portacepillos","portaJabón","jabnliquido","portacepillo","pastillero"
+  ],
+  sala: [
+"sofá","sillón","mesa","mesaauxiliar","mesacentro","televisor","tv","muebletele","estantería","alfombra",
+"cojín","cortina","biblioteca","lámpara","cuadro","reloj","plantas","maceta","revistero","aparador",
+"rack","equipoSonido","altavoz","puerta","ventana","estante","banqueta","taburete","consola","mando",
+"portaFotos","centroentretenimiento","cojinDecor","mantaSala","portaVasos","fundaSofa","protectorSofa","lamparapied","posapies","lámparita"
+  ]
+};
+
+/* ===========================
+  Estado
+  =========================== */
+let state = {
+  name: '',
+  gender: 'male',
+  department: 'dormitorio',
+  level: 1, // 1..20
+  maxLevels: 20,
+  wordsToFind: [],
+  found: new Set(),
+  grid: [],
+  rows: 0, cols: 0,
+  selecting: null,
+  selectingSeq: [],
+  timerId: null,
+  timeLeft: 30
+};
+
+/* UI refs */
+const btnMale = document.getElementById('btnMale');
+const btnFemale = document.getElementById('btnFemale');
+const startBtn = document.getElementById('startBtn');
+const deptBtns = document.querySelectorAll('.deptBtn');
+const playerNameInput = document.getElementById('playerName');
+const startCard = document.getElementById('startCard');
+const gameUI = document.getElementById('gameUI');
+const avatarBox = document.getElementById('avatarBox');
+const playerInfo = document.getElementById('playerInfo');
+const deptInfo = document.getElementById('deptInfo');
+const levelUI = document.getElementById('levelUI');
+const timerEl = document.getElementById('timer');
+const gridEl = document.getElementById('grid');
+const wordsUI = document.getElementById('wordsUI');
+const resetSel = document.getElementById('resetSel');
+const nextBtn = document.getElementById('nextBtn');
+const retryBtn = document.getElementById('retryBtn');
+const menuBtn = document.getElementById('menuBtn');
+const levelsRow = document.getElementById('levelsRow');
+const trackBox = document.getElementById('trackBox');
+const toast = document.getElementById('toast');
+
+/* SVG avatars (simple drawings) */
+const SVG_BOY = `<svg class="svg-avatar" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="niño">
+  <g fill="none" fill-rule="evenodd">
+    <circle cx="32" cy="20" r="10" fill="#FFD8B1"/>
+    <path d="M22 28c0 6 10 6 20 0" fill="#8ED1FC"/>
+    <rect x="14" y="32" width="36" height="20" rx="6" fill="#6cc3ff"/>
+    <circle cx="26" cy="18" r="1.5" fill="#333"/>
+    <circle cx="38" cy="18" r="1.5" fill="#333"/>
+    <path d="M25 22c2 1.5 6 1.5 8 0" stroke="#111" stroke-linecap="round"/>
+  </g>
+</svg>`;
+const SVG_GIRL = `<svg class="svg-avatar" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="niña">
+  <g fill="none" fill-rule="evenodd">
+    <circle cx="32" cy="20" r="10" fill="#FFD8B1"/>
+    <path d="M18 28c1.5 6 26 6 28 0" fill="#FFBED8"/>
+    <rect x="14" y="32" width="36" height="20" rx="6" fill="#ff7aa2"/>
+    <circle cx="26" cy="18" r="1.5" fill="#333"/>
+    <circle cx="38" cy="18" r="1.5" fill="#333"/>
+    <path d="M25 22c2 1.5 6 1.5 8 0" stroke="#111" stroke-linecap="round"/>
+    <path d="M20 12c2 6 24 6 24 0" stroke="#ff7aa2" stroke-linecap="round"/>
+  </g>
+</svg>`;
+
+/* ===========================
+  Bind start menu events
+  =========================== */
+btnMale.addEventListener('click', ()=>{ state.gender='male'; btnMale.classList.add('active'); btnFemale.classList.remove('active'); renderAvatar(); });
+btnFemale.addEventListener('click', ()=>{ state.gender='female'; btnFemale.classList.add('active'); btnMale.classList.remove('active'); renderAvatar(); });
+
+deptBtns.forEach(b => b.addEventListener('click', (e)=>{
+  deptBtns.forEach(x=>x.style.boxShadow='none');
+  e.currentTarget.style.boxShadow='0 6px 18px rgba(0,0,0,0.06)';
+  state.department = e.currentTarget.dataset.dept;
+}));
+
+startBtn.addEventListener('click', ()=>{
+  const name = (playerNameInput.value || 'Jugador').trim();
+  if(!name){ showToast('Escribe tu nombre, por favor.'); return; }
+  state.name = name;
+  playerInfo.textContent = state.name;
+  startCard.style.display = 'none';
+  gameUI.style.display = 'block';
+  state.level = 1;
+  renderAvatar();
+  buildLevelStrip();
+  startLevel();
+});
+
+/* ===========================
+  Build level strip and marker
+  =========================== */
+function buildLevelStrip(){
+  levelsRow.innerHTML = '';
+  for(let i=1;i<=state.maxLevels;i++){
+    const d = document.createElement('div');
+    d.className = 'lvlDot';
+    d.dataset.level = i;
+    d.textContent = i;
+    levelsRow.appendChild(d);
+  }
+  trackBox.innerHTML = '';
+  const marker = document.createElement('div');
+  marker.id='marker'; marker.style.position='absolute'; marker.style.left='0px'; marker.style.top='0px';
+  marker.style.width='44px'; marker.style.height='44px'; marker.style.display='flex'; marker.style.alignItems='center'; marker.style.justifyContent='center';
+  marker.innerHTML = state.gender==='male'?SVG_BOY:SVG_GIRL;
+  trackBox.appendChild(marker);
+  updateTrackPosition();
+}
+
+/* set marker position according to level */
+function updateTrackPosition(){
+  const marker = document.getElementById('marker');
+  if(!marker) return;
+  const dots = Array.from(document.querySelectorAll('.lvlDot'));
+  const idx = Math.max(0, Math.min(dots.length-1, state.level-1));
+  const dot = dots[idx];
+  if(!dot) return;
+  const parentRect = levelsRow.getBoundingClientRect();
+  const dotRect = dot.getBoundingClientRect();
+  const left = dotRect.left - parentRect.left + (dotRect.width/2) - 22;
+  const centerTarget = dot.offsetLeft - (levelsRow.clientWidth/2) + (dot.offsetWidth/2);
+  levelsRow.scrollTo({left: Math.max(0, centerTarget), behavior:'smooth'});
+  marker.style.transition='transform 400ms ease';
+  marker.style.transform = `translateX(${left}px)`;
+}
+
+/* ===========================
+  Start and manage levels
+  =========================== */
+function startLevel(){
+  // reset
+  stopTimer();
+  state.found = new Set();
+  state.selecting = null;
+  state.selectingSeq = [];
+  levelUI.textContent = state.level;
+  deptInfo.textContent = capitalize(state.department);
+  // select words (5 * level), cap 100
+  const count = Math.min(5 * state.level, 100);
+  const pool = shuffle(WORDS[state.department].slice());
+  while(pool.length < count) pool.push(...WORDS[state.department].slice());
+  state.wordsToFind = pool.slice(0,count).map(w => w.toUpperCase().replace(/\s+/g,''));
+  // compute grid size
+  const maxLen = Math.max(...state.wordsToFind.map(w=>w.length));
+  const area = Math.max(count * 3, maxLen * 3, 12 + state.level * 2);
+  const size = Math.min(40, Math.max(12, Math.ceil(Math.sqrt(area))));
+  state.rows = size; state.cols = size;
+  const placed = placeWords(state.rows, state.cols, state.wordsToFind);
+  state.grid = placed.grid;
+  state.positions = placed.positions;
+  renderGrid();
+  renderWords();
+  updateLevelDots();
+  updateTrackPosition();
+  // timer fixed 30s
+  state.timeLeft = 30;
+  updateTimerUI();
+  startTimer();
+  nextBtn.style.display = 'none';
+  retryBtn.style.display = 'none';
+}
+
+/* Timer */
+function startTimer(){
+  stopTimer();
+  state.timerId = setInterval(()=>{
+    state.timeLeft--;
+    updateTimerUI();
+    if(state.timeLeft <= 0){
+      stopTimer();
+      showToast('Se acabó el tiempo. Intenta de nuevo.');
+      retryBtn.style.display = 'inline-block';
+    }
+  },1000);
+}
+function stopTimer(){ if(state.timerId) clearInterval(state.timerId); state.timerId = null; }
+function updateTimerUI(){ const m = Math.floor(state.timeLeft/60).toString().padStart(2,'0'); const s = (state.timeLeft%60).toString().padStart(2,'0'); timerEl.textContent = `${m}:${s}`; }
+
+/* ===========================
+  Render grid & words
+  =========================== */
+function renderGrid(){
+  gridEl.innerHTML = '';
+  gridEl.style.gridTemplateColumns = `repeat(${state.cols}, auto)`;
+  for(let r=0;r<state.rows;r++){
+    for(let c=0;c<state.cols;c++){
+      const div = document.createElement('div');
+      div.className='cell';
+      div.dataset.r = r; div.dataset.c = c;
+      div.textContent = state.grid[r][c] || randomLetter();
+      div.addEventListener('mousedown', cellDown);
+      div.addEventListener('mouseenter', cellEnter);
+      div.addEventListener('mouseup', cellUp);
+      div.addEventListener('touchstart', touchStart, {passive:false});
+      div.addEventListener('touchmove', touchMove, {passive:false});
+      div.addEventListener('touchend', touchEnd, {passive:false});
+      gridEl.appendChild(div);
+    }
+  }
+  document.addEventListener('mouseup', ()=>{ if(state.selecting) finalizeSelection(); });
+}
+
+function renderWords(){
+  wordsUI.innerHTML = '';
+  for(const w of state.wordsToFind){
+    const chip = document.createElement('div');
+    chip.className='wordChip';
+    chip.id = 'word-'+w;
+    chip.textContent = w;
+    wordsUI.appendChild(chip);
+  }
+}
+
+/* ===========================
+  Cell interactions (mouse)
+  =========================== */
+function cellDown(e){ e.preventDefault(); const el=e.currentTarget; startSelection(Number(el.dataset.r), Number(el.dataset.c)); }
+function cellEnter(e){ if(!state.selecting) return; const el=e.currentTarget; extendSelection(Number(el.dataset.r), Number(el.dataset.c)); }
+function cellUp(e){ if(state.selecting) finalizeSelection(); }
+
+/* Touch */
+function touchStart(e){ e.preventDefault(); const t=e.changedTouches[0]; const target=document.elementFromPoint(t.clientX,t.clientY); if(!target||!target.classList.contains('cell')) return; startSelection(Number(target.dataset.r), Number(target.dataset.c)); }
+function touchMove(e){ e.preventDefault(); const t=e.changedTouches[0]; const target=document.elementFromPoint(t.clientX,t.clientY); if(!target||!target.classList.contains('cell')) return; extendSelection(Number(target.dataset.r), Number(target.dataset.c)); }
+function touchEnd(e){ e.preventDefault(); finalizeSelection(); }
+
+/* Selection logic */
+function startSelection(r,c){ state.selecting = {r,c}; state.selectingSeq = [{r,c}]; highlightSeq(); }
+function extendSelection(r,c){ const last = state.selectingSeq[state.selectingSeq.length-1]; if(!last || last.r!==r || last.c!==c){ state.selectingSeq.push({r,c}); highlightSeq(); } }
+function highlightSeq(){ document.querySelectorAll('.cell.sel').forEach(n=>n.classList.remove('sel')); for(const p of state.selectingSeq){ const el=document.querySelector(`.cell[data-r="${p.r}"][data-c="${p.c}"]`); if(el) el.classList.add('sel'); } }
+function finalizeSelection(){
+  if(!state.selectingSeq||state.selectingSeq.length===0){ state.selecting=null; return; }
+  const start = state.selectingSeq[0]; const end = state.selectingSeq[state.selectingSeq.length-1];
+  const seq = getSequence(start,end);
+  const formed = seq.map(p => (state.grid[p.r][p.c]||' ').toUpperCase()).join('');
+  const rev = formed.split('').reverse().join('');
+  const foundIndex = state.wordsToFind.findIndex(w => w === formed || w === rev);
+  if(foundIndex >= 0){
+    const word = state.wordsToFind[foundIndex];
+    if(!state.found.has(word)){
+      state.found.add(word);
+      for(const p of seq){ const el=document.querySelector(`.cell[data-r="${p.r}"][data-c="${p.c}"]`); if(el) el.classList.add('found'); }
+      const chip = document.getElementById('word-'+word); if(chip) chip.classList.add('found');
+      // progress check
+      if(state.found.size === state.wordsToFind.length){
+        // level complete
+        stopTimer();
+        showToast('¡Muy bien! Nivel completado.');
+        // animate avatar
+        const svgEl = avatarBox.firstElementChild; if(svgEl){ svgEl.classList.add('jump'); setTimeout(()=>svgEl.classList.remove('jump'),550); }
+        // mark dot done
+        const dot = document.querySelector(`.lvlDot[data-level="${state.level}"]`); if(dot) dot.classList.add('done');
+        // advance automatically
+        if(state.level < state.maxLevels){ state.level++; setTimeout(()=>startLevel(),700); } else { setTimeout(()=>{ showToast('¡Completaste los 20 niveles de esta habitación!'); startLevel(); },700); }
+      }
+    }
+  } else {
+    for(const p of seq){ const el=document.querySelector(`.cell[data-r="${p.r}"][data-c="${p.c}"]`); if(el){ el.classList.add('sel'); setTimeout(()=>el.classList.remove('sel'),350); } }
+  }
+  state.selecting = null; state.selectingSeq = [];
+  setTimeout(()=>document.querySelectorAll('.cell.sel').forEach(n=>n.classList.remove('sel')),350);
+}
+
+/* ===========================
+  Utilities: getSequence between two cells (straight)
+  =========================== */
+function getSequence(a,b){
+  const dr = Math.sign(b.r - a.r); const dc = Math.sign(b.c - a.c);
+  if(dr===0 && dc===0) return [a];
+  const seq=[]; let r=a.r,c=a.c;
+  while(true){
+    seq.push({r,c});
+    if(r===b.r && c===b.c) break;
+    if(r !== b.r) r += dr;
+    if(c !== b.c) c += dc;
+    if(seq.length>3000) break;
+  }
+  return seq;
+}
+
+/* ===========================
+  Word placement algorithm (simple)
+  =========================== */
+function placeWords(rows, cols, words){
+  const grid = Array.from({length:rows}, ()=>Array(cols).fill(''));
+  const positions = {};
+  const dirs = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,-1],[1,-1],[-1,1]];
+  for(const raw of words){
+    const word = raw.toUpperCase();
+    let placed=false;
+    for(let attempt=0; attempt<500 && !placed; attempt++){
+      const dir = dirs[Math.floor(Math.random()*dirs.length)];
+      const len = word.length;
+      const r0 = Math.floor(Math.random()*rows);
+      const c0 = Math.floor(Math.random()*cols);
+      const rEnd = r0 + dir[0]*(len-1);
+      const cEnd = c0 + dir[1]*(len-1);
+      if(rEnd<0||rEnd>=rows||cEnd<0||cEnd>=cols) continue;
+      let ok=true; let rr=r0, cc=c0;
+      for(let i=0;i<len;i++){
+        const ch = grid[rr][cc];
+        if(ch && ch !== word[i]){ ok=false; break; }
+        rr += dir[0]; cc += dir[1];
+      }
+      if(!ok) continue;
+      rr=r0; cc=c0;
+      for(let i=0;i<len;i++){ grid[rr][cc] = word[i]; rr += dir[0]; cc += dir[1]; }
+      positions[word] = {r0,c0,dir}; placed=true;
+    }
+    if(!placed){
+      outer:
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<=cols-word.length;c++){
+          let ok=true;
+          for(let k=0;k<word.length;k++){ const ch = grid[r][c+k]; if(ch && ch!==word[k]){ ok=false; break; } }
+          if(ok){ for(let k=0;k<word.length;k++) grid[r][c+k] = word[k]; positions[word]={r0:r,c0:c,dir:[0,1]}; placed=true; break outer; }
+        }
+      }
+    }
+  }
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(!grid[r][c]) grid[r][c]=randomLetter();
+  return {grid,positions};
+}
+
+/* ===========================
+  Helpers: shuffle, randomLetter, capitalize
+  =========================== */
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a; }
+function randomLetter(){ const L='ABCDEFGHIJKLMNOPQRSTUVWXYZ'; return L[Math.floor(Math.random()*L.length)]; }
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+/* ===========================
+  Level dots update
+  =========================== */
+function updateLevelDots(){
+  const dots = document.querySelectorAll('.lvlDot');
+  dots.forEach(d => {
+    const lvl = Number(d.dataset.level);
+    if(lvl < state.level) d.classList.add('done'); else d.classList.remove('done');
+    if(lvl === state.level) d.classList.add('active'); else d.classList.remove('active');
+  });
+}
+
+/* ===========================
+  Buttons: reset, next, retry, menu
+  =========================== */
+resetSel.addEventListener('click', ()=>{
+  state.selecting = null; state.selectingSeq = []; document.querySelectorAll('.cell.sel').forEach(n=>n.classList.remove('sel'));
+});
+nextBtn.addEventListener('click', ()=>{ if(state.level < state.maxLevels){ state.level++; startLevel(); }});
+retryBtn.addEventListener('click', ()=>{ retryBtn.style.display='none'; startLevel(); });
+menuBtn.addEventListener('click', ()=>{ if(confirm('¿Volver al menú? Se perderá el progreso actual.')){ stopTimer(); gameUI.style.display='none'; startCard.style.display='block'; } });
+
+/* ===========================
+  Render avatar in avatarBox
+  =========================== */
+function renderAvatar(){
+  avatarBox.innerHTML = state.gender==='male'?SVG_BOY:SVG_GIRL;
+  const svgEl = avatarBox.querySelector('.svg-avatar');
+  if(svgEl) svgEl.classList.remove('jump');
+}
+
+/* ===========================
+  Toast
+  =========================== */
+function showToast(msg, ms=1800){
+  toast.textContent = msg; toast.style.display='block';
+  clearTimeout(toast._t); toast._t = setTimeout(()=>{ toast.style.display='none'; }, ms);
+}
+
+/* ===========================
+  Utility on load
+  =========================== */
+renderAvatar();
+
+/* ===========================
+  End of script
+  =========================== */
+</script>
+</body>
+</html>
